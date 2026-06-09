@@ -72,6 +72,16 @@ input[type=date]:focus{border-color:var(--accent)}
   font-size:0.65rem;letter-spacing:3px;color:var(--muted);
   padding:0 20px 12px;text-transform:uppercase;
 }
+.sidebar-search{
+  padding:0 12px 12px;
+}
+.sidebar-search input{
+  width:100%;background:var(--s3);border:1px solid var(--border);border-radius:8px;
+  padding:8px 12px;color:var(--text);font-family:'Syne',sans-serif;font-size:0.8rem;
+  outline:none;transition:border-color .2s;
+}
+.sidebar-search input:focus{border-color:var(--accent)}
+.sidebar-search input::placeholder{color:var(--muted)}
 .firm-btn{
   display:flex;align-items:center;gap:10px;
   width:100%;padding:11px 20px;
@@ -299,6 +309,9 @@ tr.total-tr td{background:var(--accent3)!important;color:var(--gold);font-weight
   <!-- Sidebar -->
   <div class="sidebar">
     <div class="sidebar-title">Firmalar</div>
+    <div class="sidebar-search">
+      <input type="text" id="firmSearch" placeholder="🔍 Firma ara..." oninput="buildSidebar()">
+    </div>
     <div id="firmList"></div>
 
     <div class="sidebar-divider"></div>
@@ -417,7 +430,7 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-const FIRMS = ["PashaGaming","RoyalBet","Betasus","SuperBet","MaxWin","RamadaBet","VenomBet"];
+const FIRMS = ["PashaGaming","RoyalBet","Betasus","SuperBet","MaxWin","RamadaBet","VenomBet","GRANDPASHABET"];
 let current = 0;
 let data = FIRMS.map(() => ({dep:[], wit:[]}));
 let isLoading = false;
@@ -429,8 +442,11 @@ document.getElementById("reportDate").value = today;
 // ── Sidebar ──────────────────────────────────────────
 function buildSidebar() {
   const list = document.getElementById("firmList");
+  const searchEl = document.getElementById("firmSearch");
+  const query = searchEl ? searchEl.value.toLowerCase() : "";
   list.innerHTML = "";
   FIRMS.forEach((name, i) => {
+    if(query && !name.toLowerCase().includes(query)) return;
     const d = data[i];
     const done = d.dep.length > 0 && d.wit.length > 0;
     const btn = document.createElement("button");
