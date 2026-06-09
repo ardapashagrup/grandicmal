@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gece Sonu Rapor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#080c10;
+  --s1:#0e1318;
+  --s2:#141b22;
+  --s3:#1c2530;
+  --border:#1f2d3a;
+  --accent:#00d4ff;
+  --accent2:#0099bb;
+  --accent3:#005577;
+  --gold:#f5c842;
+  --green:#00e87a;
+  --red:#ff4d6a;
+  --text:#dde8f0;
+  --muted:#4a6070;
+}
+
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* grain overlay */
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:0}
+
+/* ── HEADER ── */
+header{
+  position:relative;
+  padding:28px 48px 24px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:20px;
+  background:linear-gradient(180deg,#0d1820 0%,transparent 100%);
+  overflow:hidden;
+}
+header::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+}
+.logo{
+  font-size:1.6rem;font-weight:800;letter-spacing:2px;
+  background:linear-gradient(135deg,var(--accent),#fff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.logo span{color:var(--muted);font-weight:400;font-size:0.85rem;letter-spacing:1px;display:block;-webkit-text-fill-color:var(--muted)}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:16px}
+input[type=date]{
+  background:var(--s2);border:1px solid var(--border);border-radius:8px;
+  padding:8px 14px;color:var(--text);font-family:'Syne',sans-serif;font-size:0.85rem;
+  outline:none;transition:border-color .2s;
+}
+input[type=date]:focus{border-color:var(--accent)}
+.date-label{font-size:0.75rem;color:var(--muted);margin-right:6px}
+
+/* ── LAYOUT ── */
+.app{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 80px);position:relative;z-index:1}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  border-right:1px solid var(--border);
+  padding:24px 0;
+  background:var(--s1);
+  position:sticky;top:0;height:calc(100vh - 80px);overflow-y:auto;
+}
+.sidebar-title{
+  font-size:0.65rem;letter-spacing:3px;color:var(--muted);
+  padding:0 20px 12px;text-transform:uppercase;
+}
+.firm-btn{
+  display:flex;align-items:center;gap:10px;
+  width:100%;padding:11px 20px;
+  background:transparent;border:none;cursor:pointer;
+  color:var(--muted);font-family:'Syne',sans-serif;font-size:0.85rem;font-weight:600;
+  text-align:left;transition:all .15s;position:relative;
+}
+.firm-btn:hover{color:var(--text);background:var(--s2)}
+.firm-btn.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.firm-btn.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent);border-radius:0 2px 2px 0}
+.firm-btn.done .firm-dot{background:var(--green)}
+.firm-btn.active .firm-dot{background:var(--accent)}
+.firm-dot{width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0;margin-left:auto;transition:background .2s}
+.sidebar-divider{height:1px;background:var(--border);margin:16px 12px}
+
+/* generate btn in sidebar */
+.sidebar-bottom{padding:16px 16px 0;margin-top:auto}
+.btn-gen{
+  width:100%;padding:12px;border:none;border-radius:10px;
+  background:linear-gradient(135deg,var(--accent2),var(--accent));
+  color:#080c10;font-family:'Syne',sans-serif;font-weight:800;
+  font-size:0.85rem;letter-spacing:2px;cursor:pointer;
+  transition:all .2s;box-shadow:0 4px 20px rgba(0,212,255,.2);
+}
+.btn-gen:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,212,255,.35)}
+.btn-gen:disabled{opacity:.3;cursor:not-allowed;transform:none}
+.gen-status{font-size:0.7rem;color:var(--muted);text-align:center;margin-top:8px;line-height:1.4}
+
+/* summary pills */
+.summary-pills{display:flex;gap:6px;flex-wrap:wrap;padding:0 16px;margin-top:20px}
+.pill{background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;flex:1;min-width:80px}
+.pill-label{font-size:0.6rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+.pill-val{font-size:0.8rem;font-weight:700;font-family:'JetBrains Mono',monospace;margin-top:2px}
+.pill-val.g{color:var(--green)}.pill-val.r{color:var(--red)}.pill-val.a{color:var(--accent)}.pill-val.gold{color:var(--gold)}
+
+/* ── MAIN CONTENT ── */
+.main{padding:32px 40px;overflow-y:auto}
+
+.panel-header{
+  display:flex;align-items:baseline;gap:16px;margin-bottom:28px;
+  padding-bottom:20px;border-bottom:1px solid var(--border);
+}
+.panel-title{font-size:1.8rem;font-weight:800;letter-spacing:1px}
+.panel-sub{font-size:0.8rem;color:var(--muted)}
+
+/* upload + entry grid */
+.entry-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.entry-col{}
+.col-header{
+  font-size:0.7rem;letter-spacing:3px;color:var(--accent);
+  text-transform:uppercase;margin-bottom:14px;
+  display:flex;align-items:center;gap:8px;
+}
+.col-header::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* upload buttons */
+.upload-row{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:16px}
+.upbtn{
+  border:1px dashed var(--border);border-radius:8px;
+  padding:12px;text-align:center;cursor:pointer;
+  transition:all .2s;position:relative;background:var(--s2);
+}
+.upbtn:hover{border-color:var(--accent2);background:rgba(0,212,255,.04)}
+.upbtn.has{border-color:var(--green);border-style:solid;background:rgba(0,232,122,.04)}
+.upbtn input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upbtn .ui{font-size:1.2rem}
+.upbtn .ul{font-size:0.7rem;color:var(--muted);margin-top:3px}
+.upbtn .ul strong{display:block;font-size:0.78rem;color:var(--text);margin-bottom:1px}
+.upbtn.has .ul{color:var(--green)}
+
+/* entry rows */
+.erow{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+.erow input{
+  background:var(--s3);border:1px solid var(--border);border-radius:6px;
+  padding:8px 10px;color:var(--text);font-family:'Syne',sans-serif;font-size:0.83rem;outline:none;
+  transition:border-color .15s;
+}
+.erow input:focus{border-color:var(--accent)}
+.erow .ni{flex:2}.erow .ai{flex:1;text-align:right;font-family:'JetBrains Mono',monospace}
+.btn-rm{background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;padding:8px 9px;transition:all .15s;font-size:0.8rem}
+.btn-rm:hover{border-color:var(--red);color:var(--red)}
+.btn-add{
+  background:transparent;border:1px dashed var(--accent3);border-radius:6px;
+  color:var(--accent2);cursor:pointer;padding:8px 14px;font-size:0.78rem;
+  font-family:'Syne',sans-serif;transition:all .15s;margin-top:4px;width:100%;
+}
+.btn-add:hover{border-color:var(--accent);color:var(--accent)}
+
+/* preview table */
+.preview{margin-top:28px;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.preview-head{
+  background:linear-gradient(135deg,var(--accent3),#0a2030);
+  padding:14px 20px;
+  font-size:1.1rem;font-weight:800;letter-spacing:3px;
+  text-align:center;color:var(--accent);
+  text-transform:uppercase;
+}
+.preview-body{display:grid;grid-template-columns:1fr 1fr}
+.preview-section{padding:16px}
+.preview-section+.preview-section{border-left:1px solid var(--border)}
+.ptitle{font-size:0.65rem;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px}
+table{width:100%;border-collapse:collapse;font-size:0.82rem}
+th{background:var(--s3);color:var(--accent2);padding:7px 10px;text-align:left;font-size:0.7rem;letter-spacing:1px;text-transform:uppercase}
+th:last-child{text-align:right}
+td{padding:6px 10px;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:0.8rem}
+td:first-child{font-family:'Syne',sans-serif;font-size:0.82rem}
+td:last-child{text-align:right}
+tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+tr.total-tr td{background:var(--accent3)!important;color:var(--gold);font-weight:700;border-top:1px solid var(--accent2)}
+
+/* toast */
+.toast{
+  position:fixed;bottom:28px;right:28px;z-index:999;
+  background:var(--s2);border:1px solid var(--green);border-radius:10px;
+  padding:12px 20px;color:var(--green);font-size:0.88rem;
+  transform:translateY(60px);opacity:0;transition:all .3s;
+}
+.toast.show{transform:translateY(0);opacity:1}
+
+/* scrollbar */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.main{animation:fadeIn .3s ease}
+
+/* loading overlay */
+.loading-overlay{
+  position:absolute;inset:0;background:rgba(8,12,16,.7);
+  display:flex;align-items:center;justify-content:center;
+  border-radius:8px;z-index:10;
+  font-size:0.8rem;color:var(--accent);letter-spacing:1px;
+}
+.upbtn{position:relative}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">GECE SONU RAPOR <span>FİNANSAL TAKİP SİSTEMİ</span></div>
+  </div>
+  <div class="header-right">
+    <span class="date-label">TARİH</span>
+    <input type="date" id="reportDate">
+  </div>
+</header>
+
+<div class="app">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-title">Firmalar</div>
+    <div id="firmList"></div>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="summary-pills">
+      <div class="pill" style="min-width:100%">
+        <div class="pill-label">Tamamlanan</div>
+        <div class="pill-val a" id="doneCount">0 / 7</div>
+      </div>
+      <div class="pill">
+        <div class="pill-label">Yatırım</div>
+        <div class="pill-val g" id="totalDep">₺0</div>
+      </div>
+      <div class="pill">
+        <div class="pill-label">Çekim</div>
+        <div class="pill-val r" id="totalWit">₺0</div>
+      </div>
+      <div class="pill" style="min-width:100%">
+        <div class="pill-label">Net Fark</div>
+        <div class="pill-val gold" id="netDiff">₺0</div>
+      </div>
+    </div>
+
+    <div class="sidebar-bottom">
+      <button class="btn-gen" id="btnGen" onclick="generateExcel()" disabled>
+        EXCEL İNDİR
+      </button>
+      <div class="gen-status" id="genStatus">Veri gir, Excel aktif olur.</div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main" id="mainContent">
+    <div class="panel-header">
+      <div class="panel-title" id="panelTitle">—</div>
+      <div class="panel-sub">Yatırım ve çekim verilerini gir</div>
+    </div>
+
+    <div class="entry-grid">
+      <!-- Deposit -->
+      <div class="entry-col">
+        <div class="col-header">📥 Yatırımlar</div>
+        <div class="upload-row">
+          <div class="upbtn" id="ubDepXls">
+            <input type="file" accept=".xlsx,.xls,.csv" id="fDepXls">
+            <div class="ui">📊</div>
+            <div class="ul"><strong>Excel / CSV Yükle</strong>xlsx · xls · csv</div>
+          </div>
+        </div>
+        <div id="depRows"></div>
+        <button class="btn-add" onclick="addRow('dep')">+ Kalem Ekle</button>
+      </div>
+
+      <!-- Withdraw -->
+      <div class="entry-col">
+        <div class="col-header">📤 Çekimler</div>
+        <div class="upload-row">
+          <div class="upbtn" id="ubWitXls">
+            <input type="file" accept=".xlsx,.xls,.csv" id="fWitXls">
+            <div class="ui">📊</div>
+            <div class="ul"><strong>Excel / CSV Yükle</strong>xlsx · xls · csv</div>
+          </div>
+        </div>
+        <div id="witRows"></div>
+        <button class="btn-add" onclick="addRow('wit')">+ Kalem Ekle</button>
+      </div>
+    </div>
+
+    <div id="preview"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast">✅ Excel indirildi!</div>
+
+<script>
+const FIRMS = ["PashaGaming","RoyalBet","Betasus","SuperBet","MaxWin","RamadaBet","VenomBet"];
+let current = 0;
+let data = FIRMS.map(() => ({dep:[], wit:[]}));
+let isLoading = false;
+
+// Date
+const today = new Date().toISOString().split("T")[0];
+document.getElementById("reportDate").value = today;
+
+// ── Sidebar ──────────────────────────────────────────
+function buildSidebar() {
+  const list = document.getElementById("firmList");
+  list.innerHTML = "";
+  FIRMS.forEach((name, i) => {
+    const d = data[i];
+    const done = d.dep.length > 0 && d.wit.length > 0;
+    const btn = document.createElement("button");
+    btn.className = `firm-btn${done?" done":""}${i===current?" active":""}`;
+    btn.innerHTML = `${name}<span class="firm-dot"></span>`;
+    btn.onclick = () => switchFirm(i);
+    list.appendChild(btn);
+  });
+  updateSummary();
+}
+
+function updateSummary() {
+  let totalD=0, totalW=0, done=0;
+  data.forEach(d => {
+    totalD += d.dep.reduce((a,r)=>a+r.amount,0);
+    totalW += d.wit.reduce((a,r)=>a+r.amount,0);
+    if(d.dep.length>0 && d.wit.length>0) done++;
+  });
+  document.getElementById("doneCount").textContent = `${done} / ${FIRMS.length}`;
+  document.getElementById("totalDep").textContent = fmt(totalD);
+  document.getElementById("totalWit").textContent = fmt(totalW);
+  const net = totalD - totalW;
+  const el = document.getElementById("netDiff");
+  el.textContent = (net>=0?"+":"") + fmt(net);
+  el.className = "pill-val " + (net>=0?"gold":"r");
+  document.getElementById("btnGen").disabled = done === 0;
+  document.getElementById("genStatus").textContent =
+    done===FIRMS.length ? "✅ Tüm firmalar hazır!" :
+    done===0  ? "Veri gir, Excel aktif olur." :
+    `${FIRMS.length-done} firma daha eksik`;
+}
+
+// ── Switch firm ───────────────────────────────────────
+function switchFirm(i) {
+  if(i === current) return;
+  save();
+  current = i;
+  load();
+  buildSidebar();
+}
+
+function save() {
+  if(isLoading) return;
+  data[current].dep = getRows("depRows");
+  data[current].wit = getRows("witRows");
+}
+
+function load() {
+  isLoading = true;
+  document.getElementById("depRows").innerHTML = "";
+  document.getElementById("witRows").innerHTML = "";
+  data[current].dep.forEach(r => addRow("dep", r.name, r.amount));
+  data[current].wit.forEach(r => addRow("wit", r.name, r.amount));
+  isLoading = false;
+  document.getElementById("panelTitle").textContent = FIRMS[current];
+  updateBoxStates();
+  renderPreview();
+}
+
+// FIX: Her iki kutu (dep ve wit) için xlsx kutu durumlarını doğru güncelle
+function updateBoxStates() {
+  const dc = data[current].dep.length;
+  const wc = data[current].wit.length;
+
+  setBox("ubDepXls", dc>0,
+    dc>0
+      ? `<strong>✓ ${dc} kalem yüklendi</strong>Değiştirmek için tıkla`
+      : "<strong>Excel / CSV Yükle</strong>xlsx · xls · csv"
+  );
+  setBox("ubWitXls", wc>0,
+    wc>0
+      ? `<strong>✓ ${wc} kalem yüklendi</strong>Değiştirmek için tıkla`
+      : "<strong>Excel / CSV Yükle</strong>xlsx · xls · csv"
+  );
+}
+
+function setBox(id, hasDone, html) {
+  const b = document.getElementById(id);
+  if(!b) return;
+  b.className = "upbtn" + (hasDone?" has":"");
+  const ul = b.querySelector(".ul");
+  if(ul) ul.innerHTML = html;
+}
+
+// ── File uploads (sadece Excel/CSV — API yok) ─────────
+document.getElementById("fDepXls").addEventListener("change", e => handleXlsx(e,"dep"));
+document.getElementById("fWitXls").addEventListener("change", e => handleXlsx(e,"wit"));
+
+function handleXlsx(e, type) {
+  const file = e.target.files[0]; if(!file) return;
+  const boxId = type==="dep" ? "ubDepXls" : "ubWitXls";
+  setBox(boxId, false, "<strong>Okunuyor...</strong> ⏳");
+
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const ab = ev.target.result;
+      const wb = XLSX.read(ab, {type:"array"});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:""});
+
+      let nameCol=0, amtCol=1, dataRows=rows;
+      if(rows.length > 0){
+        const h = rows[0].map(c => String(c).toLowerCase());
+        const ni = h.findIndex(c => c.includes("ödeme")||c.includes("tür")||c.includes("yöntem")||c.includes("method")||c.includes("name")||c.includes("ad"));
+        const ai = h.findIndex(c => c.includes("miktar")||c.includes("amount")||c.includes("tutar")||c.includes("toplam"));
+        if(ni >= 0) nameCol = ni;
+        if(ai >= 0) amtCol = ai;
+        dataRows = rows.slice(1);
+      }
+
+      const grouped = {};
+      dataRows.forEach(r => {
+        const name = String(r[nameCol]||"").trim();
+        if(!name || name.toLowerCase()==="toplam" || name.toLowerCase()==="total") return;
+        const rawAmt = String(r[amtCol]||"0");
+        const amt = parseMoney(rawAmt);
+        grouped[name] = (grouped[name]||0) + amt;
+      });
+
+      const entries = Object.entries(grouped).filter(([,v]) => v > 0);
+      if(!entries.length) throw new Error("Geçerli veri bulunamadı");
+
+      document.getElementById(type==="dep"?"depRows":"witRows").innerHTML = "";
+      entries.forEach(([n,a]) => addRow(type, n, Math.round(a*100)/100));
+      setBox(boxId, true, `<strong>✓ ${entries.length} kalem</strong>${file.name}`);
+      sync();
+    } catch(err) {
+      setBox(boxId, false, `<strong>⚠ Hata: </strong>${err.message||"Tekrar dene"}`);
+    }
+    e.target.value = "";
+  };
+  reader.onerror = () => {
+    setBox(boxId, false, "<strong>⚠ Dosya okunamadı</strong>Tekrar dene");
+    e.target.value = "";
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── Rows ──────────────────────────────────────────────
+function addRow(type, name="", amount="") {
+  const container = document.getElementById(type==="dep"?"depRows":"witRows");
+  const div = document.createElement("div");
+  div.className = "erow";
+  // XSS önlemi: value'ları güvenli şekilde set et
+  div.innerHTML = `
+    <input class="ni" placeholder="Yöntem adı" oninput="sync()">
+    <input class="ai" placeholder="0.00" oninput="sync()">
+    <button class="btn-rm" onclick="this.parentElement.remove();sync()">✕</button>`;
+  container.appendChild(div);
+  const inputs = div.querySelectorAll("input");
+  inputs[0].value = name;
+  inputs[1].value = amount;
+  if(!isLoading) sync();
+}
+
+function getRows(id) {
+  const rows = [];
+  document.getElementById(id).querySelectorAll(".erow").forEach(r => {
+    const inputs = r.querySelectorAll("input");
+    const name = inputs[0].value.trim();
+    const amount = parseMoney(inputs[1].value);
+    if(name) rows.push({name, amount});
+  });
+  return rows;
+}
+
+function sync() {
+  if(isLoading) return;
+  save();
+  renderPreview();
+  buildSidebar();
+}
+
+// ── Preview ───────────────────────────────────────────
+function renderPreview() {
+  const dep = data[current].dep;
+  const wit = data[current].wit;
+  const el = document.getElementById("preview");
+  if(!dep.length && !wit.length) { el.innerHTML=""; return; }
+
+  const totalD = dep.reduce((a,r)=>a+r.amount,0);
+  const totalW = wit.reduce((a,r)=>a+r.amount,0);
+
+  const depRows = dep.map(r=>`<tr><td>${escHtml(r.name)}</td><td>${fmt(r.amount)}</td></tr>`).join("");
+  const witRows = wit.map(r=>`<tr><td>${escHtml(r.name)}</td><td>${fmt(r.amount)}</td></tr>`).join("");
+
+  el.innerHTML = `
+  <div class="preview">
+    <div class="preview-head">${escHtml(FIRMS[current])}</div>
+    <div class="preview-body">
+      <div class="preview-section">
+        <div class="ptitle">Yatırımlar</div>
+        <table><thead><tr><th>Yöntem</th><th>Miktar</th></tr></thead>
+        <tbody>${depRows}<tr class="total-tr"><td>TOPLAM</td><td>${fmt(totalD)}</td></tr></tbody></table>
+      </div>
+      <div class="preview-section">
+        <div class="ptitle">Çekimler</div>
+        <table><thead><tr><th>Yöntem</th><th>Miktar</th></tr></thead>
+        <tbody>${witRows}<tr class="total-tr"><td>TOPLAM</td><td>${fmt(totalW)}</td></tr></tbody></table>
+      </div>
+    </div>
+  </div>`;
+}
+
+// Hem İngilizce (1,234,567.89) hem Türkçe (1.234.567,89) formatı doğru parse eder
+function parseMoney(s) {
+  s = String(s||"0").trim().replace(/[₺$€\s]/g,"");
+  if(!s) return 0;
+  // İngilizce: binlik ayraç=virgül, ondalık=nokta → 1,234,567.89
+  if(/^\d{1,3}(,\d{3})*(\.\d+)?$/.test(s)) {
+    return parseFloat(s.replace(/,/g,"")) || 0;
+  }
+  // Türkçe: binlik ayraç=nokta, ondalık=virgül → 1.234.567,89
+  if(/^\d{1,3}(\.\d{3})*(,\d+)?$/.test(s)) {
+    return parseFloat(s.replace(/\./g,"").replace(",",".")) || 0;
+  }
+  // Sade ondalık (nokta veya virgül)
+  return parseFloat(s.replace(",",".").replace(/[^0-9.]/g,"")) || 0;
+}
+
+function fmt(n) {
+  return new Intl.NumberFormat("tr-TR",{minimumFractionDigits:2,maximumFractionDigits:2}).format(n)+" ₺";
+}
+
+// Basit XSS önlemi
+function escHtml(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// ── Excel Generate ────────────────────────────────────
+function generateExcel() {
+  save();
+  const wb2 = XLSX.utils.book_new();
+  const dateStr = document.getElementById("reportDate").value;
+  const dateLabel = new Date(dateStr+"T00:00:00").toLocaleDateString("tr-TR",{day:"2-digit",month:"long",year:"numeric"});
+  const numFmt = '#,##0.00\\ [$₺-41F]';
+
+  const TEAL="4BACC6",LTEAL="9DC3D4",WHITE="FFFFFF",DARK="1F1F1F",
+        HBLU="2E75B6",TEAL2="31849B",TEAL3="17375E",GOLD="FFD966";
+
+  function mc(v,bold=false,color=DARK,bg=null,align="left",fmt2=null){
+    const c={v,t:typeof v==="number"?"n":"s"};
+    c.s={font:{name:"Arial",bold,sz:10,color:{rgb:color}},
+         alignment:{horizontal:align,vertical:"center"},
+         border:{top:{style:"thin",color:{rgb:"AAAAAA"}},bottom:{style:"thin",color:{rgb:"AAAAAA"}},
+                 left:{style:"thin",color:{rgb:"AAAAAA"}},right:{style:"thin",color:{rgb:"AAAAAA"}}}};
+    if(bg) c.s.fill={patternType:"solid",fgColor:{rgb:bg}};
+    if(fmt2) c.z=fmt2;
+    return c;
+  }
+
+  // Firm sheets
+  data.forEach((fd,fi)=>{
+    if(!fd.dep.length && !fd.wit.length) return;
+    const name=FIRMS[fi];
+    const aoa=[];
+    aoa.push([{v:name.toUpperCase(),t:"s",s:{font:{name:"Arial",bold:true,sz:18,color:{rgb:DARK}},fill:{patternType:"solid",fgColor:{rgb:TEAL}},alignment:{horizontal:"center",vertical:"center"}}},null,null,null,null]);
+    aoa.push([{v:dateLabel,t:"s",s:{font:{name:"Arial",sz:9,italic:true,color:{rgb:WHITE}},fill:{patternType:"solid",fgColor:{rgb:TEAL2}},alignment:{horizontal:"center"}}},null,null,null,null]);
+    aoa.push([mc("YATIRIMLAR",true,WHITE,HBLU,"center"),mc("",false,WHITE,HBLU),mc("",false,WHITE,WHITE),mc("ÇEKİMLER",true,WHITE,HBLU,"center"),mc("",false,WHITE,HBLU)]);
+    aoa.push([mc("Yöntem",true,WHITE,TEAL2,"center"),mc("Miktar (₺)",true,WHITE,TEAL2,"center"),mc("",false,WHITE,WHITE),mc("Yöntem",true,WHITE,TEAL2,"center"),mc("Miktar (₺)",true,WHITE,TEAL2,"center")]);
+    const maxLen=Math.max(fd.dep.length,fd.wit.length);
+    for(let i=0;i<maxLen;i++){
+      const bg=i%2===0?LTEAL:WHITE;
+      const dr=fd.dep[i]||{name:"",amount:""};
+      const wr=fd.wit[i]||{name:"",amount:""};
+      aoa.push([
+        mc(dr.name,true,DARK,bg,"left"),
+        typeof dr.amount==="number"?{...mc(dr.amount,false,DARK,bg,"right"),z:numFmt}:mc("",false,DARK,bg),
+        mc("",false,WHITE,WHITE),
+        mc(wr.name,true,DARK,bg,"left"),
+        typeof wr.amount==="number"?{...mc(wr.amount,false,DARK,bg,"right"),z:numFmt}:mc("",false,DARK,bg),
+      ]);
+    }
+    const td=fd.dep.reduce((a,r)=>a+r.amount,0);
+    const tw=fd.wit.reduce((a,r)=>a+r.amount,0);
+    aoa.push([mc("TOPLAM YATIRIM",true,WHITE,TEAL3,"left"),{...mc(td,true,GOLD,TEAL3,"right"),z:numFmt},mc("",false,WHITE,WHITE),mc("TOPLAM ÇEKİM",true,WHITE,TEAL3,"left"),{...mc(tw,true,GOLD,TEAL3,"right"),z:numFmt}]);
+    const ws2=XLSX.utils.aoa_to_sheet(aoa);
+    ws2["!cols"]=[{wch:28},{wch:20},{wch:3},{wch:28},{wch:20}];
+    ws2["!merges"]=[{s:{r:0,c:0},e:{r:0,c:4}},{s:{r:1,c:0},e:{r:1,c:4}},{s:{r:2,c:0},e:{r:2,c:1}},{s:{r:2,c:3},e:{r:2,c:4}}];
+    XLSX.utils.book_append_sheet(wb2,ws2,name.substring(0,31));
+  });
+
+  // Summary
+  const sumAoa=[];
+  sumAoa.push([{v:"ÖZET RAPOR",t:"s",s:{font:{name:"Arial",bold:true,sz:16,color:{rgb:DARK}},fill:{patternType:"solid",fgColor:{rgb:TEAL}},alignment:{horizontal:"center",vertical:"center"}}},null,null,null]);
+  sumAoa.push([{v:dateLabel,t:"s",s:{font:{name:"Arial",sz:9,italic:true,color:{rgb:WHITE}},fill:{patternType:"solid",fgColor:{rgb:TEAL2}},alignment:{horizontal:"center"}}},null,null,null]);
+  sumAoa.push([mc("Firma",true,WHITE,HBLU,"center"),mc("Toplam Yatırım (₺)",true,WHITE,HBLU,"center"),mc("Toplam Çekim (₺)",true,WHITE,HBLU,"center"),mc("Net Fark (₺)",true,WHITE,HBLU,"center")]);
+  let gd=0,gw=0;
+  data.forEach((fd,fi)=>{
+    const bg=fi%2===0?LTEAL:WHITE;
+    const td=fd.dep.reduce((a,r)=>a+r.amount,0);
+    const tw=fd.wit.reduce((a,r)=>a+r.amount,0);
+    const net=td-tw; gd+=td; gw+=tw;
+    sumAoa.push([mc(FIRMS[fi],true,DARK,bg,"left"),{...mc(td,false,DARK,bg,"right"),z:numFmt},{...mc(tw,false,DARK,bg,"right"),z:numFmt},{...mc(net,false,net>=0?"375623":"C00000",bg,"right"),z:numFmt}]);
+  });
+  sumAoa.push([mc("GENEL TOPLAM",true,WHITE,TEAL3,"left"),{...mc(gd,true,GOLD,TEAL3,"right"),z:numFmt},{...mc(gw,true,GOLD,TEAL3,"right"),z:numFmt},{...mc(gd-gw,true,GOLD,TEAL3,"right"),z:numFmt}]);
+  const sumWs=XLSX.utils.aoa_to_sheet(sumAoa);
+  sumWs["!cols"]=[{wch:28},{wch:22},{wch:22},{wch:22}];
+  sumWs["!merges"]=[{s:{r:0,c:0},e:{r:0,c:3}},{s:{r:1,c:0},e:{r:1,c:3}}];
+  XLSX.utils.book_append_sheet(wb2,sumWs,"ÖZET");
+
+  XLSX.writeFile(wb2,`rapor_${dateStr.replace(/-/g,"")}.xlsx`);
+  const t=document.getElementById("toast");
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),3000);
+}
+
+// ── Init ──────────────────────────────────────────────
+buildSidebar();
+load();
+addRow("dep");
+addRow("wit");
+</script>
+</body>
+</html>
